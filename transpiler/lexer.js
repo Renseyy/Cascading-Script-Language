@@ -88,20 +88,19 @@ function cutStringSimple(text){    //* DONE
     return {nodes:[{type:'Constant',dataType:'<string>',value}],rest}
 }
 function parseNumber(text){     //* DONE 
-    const notAllowed = "(){}[];:?!$@#^&+-=/~\"<> \n\t\r"
+    const notAllowed = "(){}[];:?!$@#^&+-=/~,\"<> \n\t\r"
     const LETTERS = "abcdefghijklmnopqrstuvwxyz"
     // Add Exponetnials
     /** We support:
      * 100 -> int
      * 100'000 | 100_000-> 100000
-     * 100,001 | 100.001 -> 100.001
+     * 100.001 -> 100.001
      * 0b1001 | 0B1001 -> 9
      */
     /**
      * ? 0. is valid but returned as <number> not <int>
-     * ! but 0, is invalid
+     * 
      * ? .1 is valid
-     * ! ,1 is invalid
      */
     /** Basic number types:
      * <integer> <int> <unsigned integer>
@@ -159,14 +158,9 @@ function parseNumber(text){     //* DONE
             if(scientificNotation !== null) scientificNotation+=text[i];
             else value+=text[i];
             
-        }else if(text[i] == ',' || text[i] == '.'){
+        }else if(text[i] == '.'){
             if(hasDot) 
-                if(!separator){
-                    throw new Error('Number cannot have double dot');
-                }else{
-                    break;
-                }
-            if(text[i] == ',') separator = true;
+                throw new Error('Number cannot have double dot');
             hasDot = true;
             value+='.'
         }else if(text[i] == "'" || text[i] == '_'){
@@ -206,7 +200,6 @@ function parseNumber(text){     //* DONE
         i++;
     }
     // Jeżeli ostatni był przecinek
-    if(value[value.length-1] == '.' && separator) i--;
     for(;i<text.length;i++){
         rest+=text[i];
     }
