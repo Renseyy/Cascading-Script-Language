@@ -116,7 +116,6 @@ function parseNumber(text){     //* DONE
     let rest = '';
     let i = 0;
     let value = ''
-    let separator = false;
     let base = 10;
     let unitTime = false;
     let scientificNotation = null;
@@ -337,7 +336,7 @@ function parseCalcSymbol(text){
      * & Operacje oznaczone {P} są rozwiązywane na etapie parsowania a nie lekserowania
      * ? [ + ]  Dodawanie                       Addition        (a + b) JS,PHP
      * ? [ - ]  Odejmowanie                     Subtraction     (a - b) JS,PHP
-     * ? [ / ]  Dzielenie                       Division        (a / b) JS,PHP
+     * ? [ / | ÷ ]  Dzielenie                       Division        (a / b) JS,PHP
      * ? [ * | x | x | · | ⋅ ]  Mnożenie         Multiplication  (a * b) JS,PHP             
      * ? [ % ]  Reszta z dzielenia całkowitego  Modulus         (a % b) JS,PHP
      * ? [ ++ ] Zwiększenie o jeden (Pre)       Increment       (++a )  PHP     {P}
@@ -364,23 +363,24 @@ function parseCalcSymbol(text){
      * &   Ich interpretacja domyślna jest bitowa, jednak zmienia się na logiczną, jeżeli operatory nie są typu <integer>, bądź jeżeli oznaczymy operatory jako logiczne
      * ? [ && | AND | ∧ ]                    Logiczne i                             LogicAnd | And      (a && b | a AND b | a ∧ b )
      * ? [ || | OR | ∨ | v ]                 Logiczne lub                           LogicOr | Or        (a || b | a OR b | a ∨ b)    
-     * ? [ ⊻ | XOR | EOR | <> | != | ~= ]    Logiczne XOR | Logiczna nierówność     Inequality | Xor    (a ⊻ b | a XOR b | a <> b | a != b)
-     * ? [ ~ | ! | ¬ | NOT]                  Logiczne zaprzeczenie                  LogicNot | Not       
+     * ? [ ⊻ | XOR | EOR | <> | != ]           Logiczne XOR | Logiczna nierówność     Inequality | Xor    (a ⊻ b | a XOR b | a <> b | a != b)
+     * ? [ ! | ¬ | NOT]                  Logiczne zaprzeczenie                  LogicNot | Not       
      * ? [ = | == | ⇔ ]                     Logiczna równość                       Equality
      * ? [ === | ≡ ]                         Logiczna równość i identyczność typów  Identity
-     * ? [ !== | ~== ]                       Nie identyczność                       NonIdentity
+     * ? [ !== ]                       Nie identyczność                       NonIdentity
      * ? [ -> | ⇒ | → | TO ]                 Logiczna implikacja                    Implication
      * ? [ > ]                               Większy niż                            Greater
      * ? [ < ]                               Mniejszy niż                           Less
-     * ? [ >= | => ]                         Większy, bądz równy                    GreaterOrEqual
-     * ? [ <= | =< ]                         Mniejszy, bądz równy                   LessOrEqual
+     * ? [ >= | => | ≥ | ⩾ ]                         Większy, bądz równy                    GreaterOrEqual
+     * ? [ <= | =< | ≤ | ⩽ ]                         Mniejszy, bądz równy                   LessOrEqual
      * 
      * * Operatory Bitowe
      * & Należy pamiętać, że w operatorach tak jak we wszystkich stałych językowych nie liczy się wielkość liter
      * & Operatory  [ AND | OR | XOR | EOR | ~ | NOT] Są używane także przy operacjach logicznych. Jendak zachowanie Bitowe jest domyślne
      * ? [ & | AND ]        Bitowe i  (a & b | a AND b )                            ByteAnd | And         
      * ? [ | | OR ]         Bitowe lub (a | b | a OR b )                            ByteOr | Or
-     * ? [ XOR | EOR | ^ ]  Bitowe XOR                                              Xor
+     * ? [ XOR | EOR | ^ ]  Bitowe XOR                                              Xor | ByteXor
+     * ? [ ~ | NOT ]        Bitowe Nie                                              ByteNot | Not    
      * ? [ << ]             Przesunięcie w lewo                                     LeftShift
      * ? [ >> ]             Przesunięcie w prawo                                    RightShift
      * 
@@ -441,6 +441,8 @@ function parseCalcSymbol(text){
         }else{
             type = 'Division'
         }
+    }else if(l == '÷'){
+        type = 'Division'
     }else if(l == '%'){
         type = 'Modulus'
     }else if(l == '&'){
@@ -520,10 +522,12 @@ function parseCalcSymbol(text){
         type = 'Equality' 
     }else if(l == '≡'){
         type = 'Identity' 
-    }else if(l == '≡'){
-        type = 'Identity' 
     }else if(l == '⇒' || l == '→'){
         type = 'Implication'
+    }else if(l == '≥' || l == '⩾'){
+        type = 'GreaterOrEqual'
+    }else if(l == '≤' || l == '⩽'){
+        type = 'LessOrEqual'
     }else if(l == '>'){
         if(text[i+1] == '='){
             type = 'GreaterOrEqual'
@@ -562,6 +566,12 @@ function parseCalcSymbol(text){
     }else if(l == ','){
         type = "Separator"
         
+    }else if(l == '('){
+        type = "LeftBracket"
+        
+    }else if(l == ')'){
+        type = "RightBracket"
+        
     }
     //Logiczne i Binarne
     i++;
@@ -570,7 +580,26 @@ function parseCalcSymbol(text){
     }
     return type?{nodes:[{type}],rest}:null;
 }
+function parseLogicSelector(text){
 
+}
+function parseQuerySelector(text){
+    const notAllowed = "(){}[];:.,?!@#%^*&+=~`'\"<> \n\t\r"
+    if(text[0]!='$') return null;  //Var must start with $
+    let name = text[0];
+    let rest = '';
+    let i = 1;
+    while(true){
+        if(notAllowed.includes(text[i])) break;
+        if(i>= text.length) break;
+        name+=text[i];
+        i++;
+    }
+    for(;i<text.length;i++){
+        rest+=text[i];
+    }
+    return {nodes:[{type:'variable',name}],rest}
+}
 function parseFragment(text){
     /** Parsowanie elementów spornych:
      * elementy sporne, takie jak np +,- czy słowa są parsowane w kolejności
@@ -606,7 +635,8 @@ function parseFragment(text){
         }
         if(!parseTable[text[0]] && !v){
             //Może to liczba?
-            v = parseNumber(text) || parseCalcSymbol(text);
+            v = parseNumber(text) 
+            parseCalcSymbol(text);
         }else if(parseTable[text[0]]){
             v = parseTable[text[0]](text);
         }

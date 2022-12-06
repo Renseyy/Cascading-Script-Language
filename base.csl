@@ -1,14 +1,15 @@
 @inside window{
     body(){
+        
         $body: 'siemaneczko'
         body: 'siemaneczko'
         header(){
             body: inherit                                                  // Dot at start tell as that this is a class, Empty () tell as that we create empty element
             logo(): .image{
                 body:inherit                                        // Extend .image class
-                img(Images/example.png);                           // End lines with ; is optional; if no attribute presented it is content: + ...
-                content: +img(Images/example.png);                 // Same as line up
-                $img = img(Images/example.png);                    // Set local variable
+                img('Images/example.png');                           // End lines with ; is optional; if no attribute presented it is content: + ...
+                content: +img('Images/example.png');                 // Same as line up
+                $img = img('Images/example.png');                    // Set local variable
                 content: + $img;                                   // Add img to content;
                 content: - $img;                                   // Remove first img from content
                 width: inherit;                                      // U can directly set some attrubites of file
@@ -23,11 +24,7 @@
     }
     // Let's define class
     .image{                                                        // It is small diference 
-        @&(){                                                      // Constructor alternative way is @image
-            width: 100px;
-            @const height: 100px;                                  //Nobody can change height value
-            
-        }
+        
 
     }
     @inline loadingDots(){                                          // Inline is type of function that allows you manipulate data in inline element
