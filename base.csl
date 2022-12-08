@@ -4,15 +4,15 @@
         $body: 'siemaneczko'
         body: 'siemaneczko'
         header(){
-            body: inherit                                                  // Dot at start tell as that this is a class, Empty () tell as that we create empty element
+            body: inherit                                                  /// Dot at start tell as that this is a class, Empty () tell as that we create empty element
             logo(): .image{
-                body:inherit                                        // Extend .image class
-                img('Images/example.png');                           // End lines with ; is optional; if no attribute presented it is content: + ...
-                content: +img('Images/example.png');                 // Same as line up
-                $img = img('Images/example.png');                    // Set local variable
-                content: + $img;                                   // Add img to content;
-                content: - $img;                                   // Remove first img from content
-                width: inherit;                                      // U can directly set some attrubites of file
+                body:inherit                                        /// Extend .image class
+                img('Images/example.png');                           /// End lines with ; is optional; if no attribute presented it is content: + ...
+                content: +img('Images/example.png');                 /// Same as line up
+                $img = img('Images/example.png');                    /// Set local variable
+                content: + $img;                                   /// Add img to content;
+                content: - $img;                                   /// Remove first img from content
+                width: inherit;                                      /// U can directly set some attrubites of file
                 content: + 32
                 @global $width: inherit
                 @log &.width
@@ -22,23 +22,23 @@
             }
         }
     }
-    // Let's define class
-    .image{                                                        // It is small diference 
+    /// Let's define class
+    .image{                                                        /// It is small diference 
         
 
     }
-    @inline loadingDots(){                                          // Inline is type of function that allows you manipulate data in inline element
+    @inline loadingDots(){                                          /// Inline is type of function that allows you manipulate data in inline element
         extend: .span
         $number: 0 
         @setTimeOut({
             $number: $number<3 ? $number | 0
         },100ms)
 
-        @($number){                                                   // Nasłuchuj zmiany $number
+        @($number){                                                   /// Nasłuchuj zmiany $number
             @if $$ == 0 {
                 &.content: '.  '
             }
-            @elif 1{                                            // $$ is optional
+            @elif 1{                                            /// $$ is optional
                 &.content: '.. '
             }
             @else{
@@ -49,11 +49,11 @@
     }
 
 
-    @class img{                                                     // It is small diference 
-        @function img(<string> $src){                                // Optional typing
+    @class img{                                                     /// It is small diference 
+        @function img(<string> $src){                                /// Optional typing
             @async{
-                @wait                                               // if function gets 0 arguments you can write without ()
-                @log "Niesamowite!"                                 // Arguments of function can be writed without ()
+                @wait                                               /// if function gets 0 arguments you can write without ()
+                @log "Niesamowite!"                                 /// Arguments of function can be writed without ()
                 &.content: '<img src="{$src}"/>'
             }
             &.content: 'Trwa wczytywanie obrazka %{@loadingDots()}'

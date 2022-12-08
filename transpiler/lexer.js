@@ -1,10 +1,9 @@
 const { parse } = require('path');
 const ADD_EOR = false;
+const ADD_VAL = false;
 const NUMBERS = "0123456789"
-function cutScope(text){
 
 
-}
 function scientificNotationToSting(num){
     // From https://stackoverflow.com/a/61281355/19331211
     return (''+ +num).replace(/(-?)(\d*)\.?(\d*)e([+-]\d+)/,
@@ -13,16 +12,6 @@ function scientificNotationToSting(num){
             ? b + '0.' + Array(1-e-c.length).join(0) + c + d
             : b + c + d + Array(e-d.length+1).join(0);
         });
-}
-function cutFunction(text){
-    /* 
-        Function can have 4 syntaxes
-        - @echo                 @echo <text>
-        - @echo 'Maciek'        @echo <text>
-        - @echo('Maciek')       @echo <text>
-        - @sandbox(global){...} @sandbox <object> <fragment>
-
-    */
 }
 function cutFragment(text){
     if(text[0]!='{') return null;
@@ -49,12 +38,43 @@ function cutFragment(text){
     for(;i<text.length;i++){
         rest+=text[i];
     }
-    return {nodes:[{type:'fragment',subtree,value}],rest}
+    if(ADD_VAL) return {nodes:[{type:'Fragment',subtree,value}],rest}
+    return {nodes:[{type:'Fragment',subtree}],rest}
+    
+}
+function cutParenthesFragment(text){
+    if(text[0]!='(') return null;
+    let c = 1;
+    let i = 1;
+    let value = ''
+    let rest = ''
+    let subtree = null;
+    while(true){
+        if(i>= text.length) throw new Error('ParenthesFragment: Bład ze znakami {}, czy zamknięto?')
+        if(text[i] == '(') c++;
+        if(text[i] == ')'){
+            c--;
+            if(c == 0){
+                //Parse subtree
+                subtree = parseFragment(value);
+                i++;
+                break;
+            }else if(c<0) throw new Error('ParenthesFragment: Błąd ze znakami {}');
+        }
+        value += text[i];
+        i++;
+    }
+    for(;i<text.length;i++){
+        rest+=text[i];
+    }
+    if(ADD_VAL) return {nodes:[{type:'ParenthesFragment',subtree,value}],rest}
+    return {nodes:[{type:'ParenthesFragment',subtree}],rest}
+    
 }
 function cutFunctionName(text){
     const notAllowed = "(){}[];:.,?!$@#%^*&+=~`'\"<> \n\t\r"
     if(text[0]!='@') return null;  //Function must start with @
-    let name = text[0];
+    let name = '';
     let rest = '';
     let i = 1;
     while(true){
@@ -66,7 +86,7 @@ function cutFunctionName(text){
     for(;i<text.length;i++){
         rest+=text[i];
     }
-    return {type:'functionName',name,rest}
+    return {nodes:[{type:'functionName',name}],rest}
 }
 function cutStringSimple(text){    //* DONE
     if(text[0]!="'") return null;  // assigment is always '
@@ -289,7 +309,7 @@ function cutStringAdvance(text,separator){    //* DONE
 function cutVariable(text){ //* DONE
     const notAllowed = "(){}[];:.,?!@#%^*&+=~`'\"<> \n\t\r"
     if(text[0]!='$') return null;  //Var must start with $
-    let name = text[0];
+    let name = '';
     let rest = '';
     let i = 1;
     while(true){
@@ -312,6 +332,42 @@ function cutEndOfCommandRow(text){ //?TMP
     if(text[0]!=';' && text[0]!='\n') return null;
     let rest = text.substring(1) || "";
     return ADD_EOR?{nodes:[{type:'EOR'}],rest} :{nodes:[],rest};
+}
+function parseClassName(text){
+    if(text[0] !== '.') return null
+    if(NUMBERS.includes(text[1])) return null;
+    const notAllowed = "(){}[];:,$?!@#%^*&+=~`'\"<> \n\t\r"
+    let name = '';
+    let rest = '';
+    let i = 1;
+    let nodes = [];
+    while(true){
+        if(notAllowed.includes(text[i])) break;
+        if(text[i] == '.'){ //Natafiliśmy na nową klasę
+            if(name == '.') throw new Error(`Nie można używać dwóch kropek w nazwie klasy ${text}`)
+            nodes.push({
+                type:'ClassName',
+                value:name
+            })
+            nodes.push({
+                type:'With'
+            })
+            i++
+            if(NUMBERS.includes(text[i])  || notAllowed.includes(text[i]) ) throw new Error(`Nazwa klasy nie może zaczynać się od liczby lub znaku specjalnego ${text}`)
+            name = ''
+        }
+        if(i>= text.length) break;
+        name+=text[i];
+        i++;
+    }
+    nodes.push({
+        type:'ClassName',
+        value:name
+    })
+    for(;i<text.length;i++){
+        rest+=text[i];
+    }
+    return {nodes:nodes,rest}
 }
 function parseCalcSymbol(text){
     /** ParseCalcSymbol - parsowanie Symboli matematycznych
@@ -379,8 +435,8 @@ function parseCalcSymbol(text){
      * & Operatory  [ AND | OR | XOR | EOR | ~ | NOT] Są używane także przy operacjach logicznych. Jendak zachowanie Bitowe jest domyślne
      * ? [ & | AND ]        Bitowe i  (a & b | a AND b )                            ByteAnd | And         
      * ? [ | | OR ]         Bitowe lub (a | b | a OR b )                            ByteOr | Or
-     * ? [ XOR | EOR | ^ ]  Bitowe XOR                                              Xor | ByteXor
-     * ? [ ~ | NOT ]        Bitowe Nie                                              ByteNot | Not    
+     * ? [ XOR | EOR | ^ ]  Bitowe XOR                                              Xor
+     * ? [ ~ | NOT ]        Bitowe Nie                                                  
      * ? [ << ]             Przesunięcie w lewo                                     LeftShift
      * ? [ >> ]             Przesunięcie w prawo                                    RightShift
      * 
@@ -471,17 +527,7 @@ function parseCalcSymbol(text){
     }else if(l == '∨' || l.toLowerCase() == 'v'){
         type = 'LogicOr'
     }else if(l == '~'){
-        if(text[i+1] == '='){
-            if(text[i+2] == '='){
-                type = 'NonIdentity'
-                i=i+2;
-            }else{
-                type = 'Inequality'
-                i++;
-            }
-        }else{
-            type = 'LogicNot'
-        }
+        type = 'ByteNot'
     }else if(l == '!'){
         if(text[i+1] == '='){
             if(text[i+2] == '='){
@@ -567,11 +613,15 @@ function parseCalcSymbol(text){
         type = "Separator"
         
     }else if(l == '('){
-        type = "LeftBracket"
+        type = "LeftParenthes"
         
     }else if(l == ')'){
-        type = "RightBracket"
+        type = "RightParenthes"
         
+    }else if(l == '['){
+        type = "LeftSquareBracket"  
+    }else if(l == ']'){
+        type = "RightSquareBracket"  
     }
     //Logiczne i Binarne
     i++;
@@ -580,8 +630,58 @@ function parseCalcSymbol(text){
     }
     return type?{nodes:[{type}],rest}:null;
 }
+function cutIdRoute(text){
+    const notAllowed = "(){}[];:.,?!@#%^*&+=~`'\"<> \n\t\r"
+    if(text[0]!='#') return null;  //Var must start with $
+    let name = '';
+    let rest = '';
+    let i = 1;
+    while(true){
+        if(notAllowed.includes(text[i])) break;
+        if(i>= text.length) break;
+        name+=text[i];
+        i++;
+    }
+    for(;i<text.length;i++){
+        rest+=text[i];
+    }
+    return {nodes:[{type:'IDRoute',name}],rest}
+}
 function parseLogicSelector(text){
 
+}
+function parseTextValue(text){
+    const notAllowed = "(){}[];:.,?!@#%^*&+=~`'\"<> \n\t\r"
+    let name = text[0];
+    let rest = '';
+    let i = 1;
+    while(true){
+        if(notAllowed.includes(text[i])) break;
+        if(i>= text.length) break;
+        name+=text[i];
+        i++;
+    }
+    for(;i<text.length;i++){
+        rest+=text[i];
+    }
+    return {nodes:[{type:'staticNode',name}],rest}
+}
+function parseComment(text){
+    const notAllowed = "\n"
+    if(text.substring(0,3) != '///') return null;
+    let name = text[0];
+    let rest = '';
+    let i = 1;
+    while(true){
+        if(notAllowed.includes(text[i])) break;
+        if(i>= text.length) break;
+        name+=text[i];
+        i++;
+    }
+    for(;i<text.length;i++){
+        rest+=text[i];
+    }
+    return {nodes:[{type:'comment',name}],rest}
 }
 function parseQuerySelector(text){
     const notAllowed = "(){}[];:.,?!@#%^*&+=~`'\"<> \n\t\r"
@@ -615,13 +715,15 @@ function parseFragment(text){
     let work = true;
     const parseTable = {
         '$':t=>{return cutVariable(t)},         //? Variables
+        '#':t=>{return cutIdRoute(t)},         //? Id and Routes
         '@':t=>{return cutFunctionName(t)},     //? functions
         ';':t=>{return cutEndOfCommandRow(t)},  //? endOfCommandRow
         '\n':t=>{return cutEndOfCommandRow(t)},  //? ==||==
         "'":t=>{return cutStringSimple(t)},
         '"':t=>{return cutStringAdvance(t,'"')},
         '`':t=>{return cutStringAdvance(t,'`')},
-        '{':t=>{return cutFragment(t)}
+        '{':t=>{return cutFragment(t)},
+        '(':t=>{return cutParenthesFragment(t)}
     }
     while(work){
         if(text.length == 0) break;
@@ -635,8 +737,11 @@ function parseFragment(text){
         }
         if(!parseTable[text[0]] && !v){
             //Może to liczba?
-            v = parseNumber(text) 
-            parseCalcSymbol(text);
+            v = parseComment(text) || 
+            parseNumber(text) ||
+            parseClassName(text) || 
+            parseCalcSymbol(text) || 
+            parseTextValue(text)
         }else if(parseTable[text[0]]){
             v = parseTable[text[0]](text);
         }
@@ -653,5 +758,5 @@ function parseFragment(text){
     const data = await promises.readFile( __dirname + '/../test.csl')
     let programText = data.toString();
     let mainNodeTree = parseFragment(programText);
-    console.log(mainNodeTree)
+    console.dir(mainNodeTree,{ depth: null })
 })()
