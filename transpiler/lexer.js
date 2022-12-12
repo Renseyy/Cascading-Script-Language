@@ -1,10 +1,11 @@
-const { parse } = require('path');
-const ADD_EOR = false;
-const ADD_VAL = false;
+
+const ADD_EOR = true;   //D: true
+const ADD_VAL = false;  //D: false
+const ADD_WIT = true;   //D: true
 const NUMBERS = "0123456789"
 
 
-function scientificNotationToSting(num){
+function scientificNotationToString(num){
     // From https://stackoverflow.com/a/61281355/19331211
     return (''+ +num).replace(/(-?)(\d*)\.?(\d*)e([+-]\d+)/,
         function(a,b,c,d,e) {
@@ -26,8 +27,8 @@ function cutFragment(text){
         if(text[i] == '}'){
             c--;
             if(c == 0){
-                //Parse subtree
-                subtree = parseFragment(value);
+                //lex subtree
+                subtree = lexFragment(value);
                 i++;
                 break;
             }else if(c<0) throw new Error('Błąd ze znakami {}');
@@ -42,6 +43,37 @@ function cutFragment(text){
     return {nodes:[{type:'Fragment',subtree}],rest}
     
 }
+function cutSpace(text){
+    // TAB SPACE 
+    let WHITE_CHARS='\t ';
+    if(!WHITE_CHARS.includes(text[0])) return null;
+    let i = 1;
+    let rest = ''
+    while(WHITE_CHARS.includes(text[i])){
+        i++;
+    }
+    for(;i<text.length;i++){
+        rest+=text[i];
+    }
+    if(ADD_WIT) return {nodes:[{type:'Space'}],rest}
+    return {nodes:[],rest}
+    
+}
+function cutIgnored(text){
+    // TAB SPACE 
+    let INGORED_CHARS='\r ';
+    if(!INGORED_CHARS.includes(text[0])) return null;
+    let i = 1;
+    let rest = ''
+    while(INGORED_CHARS.includes(text[i])){
+        i++;
+    }
+    for(;i<text.length;i++){
+        rest+=text[i];
+    }
+    return {nodes:[],rest}
+    
+}
 function cutParenthesFragment(text){
     if(text[0]!='(') return null;
     let c = 1;
@@ -50,16 +82,16 @@ function cutParenthesFragment(text){
     let rest = ''
     let subtree = null;
     while(true){
-        if(i>= text.length) throw new Error('ParenthesFragment: Bład ze znakami {}, czy zamknięto?')
+        if(i>= text.length) throw new Error('ParenthesFragment: Bład ze znakami (), czy zamknięto?')
         if(text[i] == '(') c++;
         if(text[i] == ')'){
             c--;
             if(c == 0){
-                //Parse subtree
-                subtree = parseFragment(value);
+                //lex subtree
+                subtree = lexFragment(value);
                 i++;
                 break;
-            }else if(c<0) throw new Error('ParenthesFragment: Błąd ze znakami {}');
+            }else if(c<0) throw new Error('ParenthesFragment: Błąd ze znakami ()');
         }
         value += text[i];
         i++;
@@ -69,6 +101,35 @@ function cutParenthesFragment(text){
     }
     if(ADD_VAL) return {nodes:[{type:'ParenthesFragment',subtree,value}],rest}
     return {nodes:[{type:'ParenthesFragment',subtree}],rest}
+    
+}
+function cutBracketFragment(text){
+    if(text[0]!='[') return null;
+    let c = 1;
+    let i = 1;
+    let value = ''
+    let rest = ''
+    let subtree = null;
+    while(true){
+        if(i>= text.length) throw new Error('cutBracketFragment: Bład ze znakami (), czy zamknięto?')
+        if(text[i] == '[') c++;
+        if(text[i] == ']'){
+            c--;
+            if(c == 0){
+                //lex subtree
+                subtree = lexFragment(value);
+                i++;
+                break;
+            }else if(c<0) throw new Error('BracketFragment: Błąd ze znakami ()');
+        }
+        value += text[i];
+        i++;
+    }
+    for(;i<text.length;i++){
+        rest+=text[i];
+    }
+    if(ADD_VAL) return {nodes:[{type:'BracketFragment',subtree,value}],rest}
+    return {nodes:[{type:'BracketFragment',subtree}],rest}
     
 }
 function cutFunctionName(text){
@@ -107,7 +168,7 @@ function cutStringSimple(text){    //* DONE
     }
     return {nodes:[{type:'Constant',dataType:'<string>',value}],rest}
 }
-function parseNumber(text){     //* DONE 
+function lexNumber(text){     //* DONE 
     const notAllowed = "(){}[];:?!$@#^&+-=/~,\"<> \n\t\r"
     const LETTERS = "abcdefghijklmnopqrstuvwxyz"
     // Add Exponetnials
@@ -225,9 +286,9 @@ function parseNumber(text){     //* DONE
     // Change number to decimal
     if(base != 10){
         if(hasDot) throw new Error('Liczby zapisane za pomocą podstawy muszą być typu <integer>')
-        value = parseInt(value,base).toString(10);
+        value = lexInt(value,base).toString(10);
     }
-    if(scientificNotation!== null) value = scientificNotationToSting(value+'e'+scientificNotation);
+    if(scientificNotation!== null) value = scientificNotationToString(value+'e'+scientificNotation);
     // Dedukcja typu
     if(unit){
         if(hasDot){
@@ -251,46 +312,23 @@ function cutStringAdvance(text,separator){    //* DONE
     while(true){
         if(text[i] == separator){
             i++;
+            if(nodes.length>0 == "Fragment"){
+                nodes.push({type:'Concatenation'})
+            }
             nodes.push({type:'Constant',dataType:'<string>',value});
             break;
         }
         if(i>= text.length) throw new Error('Nieoczekiwanie zakończono `Zaawansowany tekst`');
         if(text[i] == '{'){
-            let t = text.substring(i+1);
-            while(true){
-                if(t != ' ') break;
-                t = t.substring(1);
-            }
-            const options = {
-                '$':t=>{return cutVariable(t)},         //? Variables
-                '@':t=>{return cutFunctionName(t)}
-            }
-            //Sprawdź czy to faktyczna funkcja czy zmienna
-            if(options[text[i+1]]){
-                let v = options[text[i+1]](t);
-                if(!v) throw new Error('Błąd parsowania nawiasu');
-                // Dostaliśmy text teraz:
-                // Zakończ poprzedni tekst i dodaj do nodów
-                
-                nodes.push({type:'Constant',dataType:'<string>',value});
-                nodes.push({type:'Concatenation'})
-                nodes.push(...v.nodes);
-                text = v.rest;
-                i = 1;
-                value = ''
-                //Sprawdzamy czy kończymy już, czy coś jeszcze będzie
-                if(text[i] == separator){
-                    //To koniec, skończ
-                    i++;
-                    break;
-                }else{
-                    //Dodaj jeszcze jedne dodawanie
-                    nodes.push({type:'Concatenation'})
-                }
-            }
-            console.log(text[i])
-
-            
+            let t = text.substring(i);
+            //Cut fragment
+            let v = cutFragment(t);
+            nodes.push({type:'Constant',dataType:'<string>',value});
+            nodes.push({type:'Concatenation'})
+            nodes.push(...v.nodes);
+            text = v.rest;
+            value = ''
+            i = 0;
         }else{
             if(text[i] == '\\'){
                 i++;
@@ -329,11 +367,16 @@ function cutAssignment(text){ //?TMP
     return {nodes:[{type:'assignment'}],rest}
 }
 function cutEndOfCommandRow(text){ //?TMP
-    if(text[0]!=';' && text[0]!='\n') return null;
+    if(text[0]!='\n') return null;
     let rest = text.substring(1) || "";
     return ADD_EOR?{nodes:[{type:'EOR'}],rest} :{nodes:[],rest};
 }
-function parseClassName(text){
+function cutSeparator(text){ //?TMP
+    if(text[0]!=';') return null;
+    let rest = text.substring(1) || "";
+    return ADD_EOR?{nodes:[{type:'Separator'}],rest} :{nodes:[],rest};
+}
+function lexClassName(text){
     if(text[0] !== '.') return null
     if(NUMBERS.includes(text[1])) return null;
     const notAllowed = "(){}[];:,$?!@#%^*&+=~`'\"<> \n\t\r"
@@ -369,8 +412,8 @@ function parseClassName(text){
     }
     return {nodes:nodes,rest}
 }
-function parseCalcSymbol(text){
-    /** ParseCalcSymbol - parsowanie Symboli matematycznych
+function lexCalcSymbol(text){
+    /** lexCalcSymbol - parsowanie Symboli matematycznych
      * Funkcja pobiera tekst i sprawdza czy operacja jest operacją jedną z poniższej listy:
      * * Operacje PRZYPISANIA [DONE]
      * & Wszystkie przypisania są rozwiązywane na etapie parsowania a nie lekserowania
@@ -612,16 +655,6 @@ function parseCalcSymbol(text){
     }else if(l == ','){
         type = "Separator"
         
-    }else if(l == '('){
-        type = "LeftParenthes"
-        
-    }else if(l == ')'){
-        type = "RightParenthes"
-        
-    }else if(l == '['){
-        type = "LeftSquareBracket"  
-    }else if(l == ']'){
-        type = "RightSquareBracket"  
     }
     //Logiczne i Binarne
     i++;
@@ -647,10 +680,10 @@ function cutIdRoute(text){
     }
     return {nodes:[{type:'IDRoute',name}],rest}
 }
-function parseLogicSelector(text){
+function lexLogicSelector(text){
 
 }
-function parseTextValue(text){
+function cutStaticNode(text){
     const notAllowed = "(){}[];:.,?!@#%^*&+=~`'\"<> \n\t\r"
     let name = text[0];
     let rest = '';
@@ -664,9 +697,9 @@ function parseTextValue(text){
     for(;i<text.length;i++){
         rest+=text[i];
     }
-    return {nodes:[{type:'staticNode',name}],rest}
+    return {nodes:[{type:'StaticNode',name}],rest}
 }
-function parseComment(text){
+function lexComment(text){
     const notAllowed = "\n"
     if(text.substring(0,3) != '///') return null;
     let name = text[0];
@@ -683,7 +716,7 @@ function parseComment(text){
     }
     return {nodes:[{type:'comment',name}],rest}
 }
-function parseQuerySelector(text){
+function lexQuerySelector(text){
     const notAllowed = "(){}[];:.,?!@#%^*&+=~`'\"<> \n\t\r"
     if(text[0]!='$') return null;  //Var must start with $
     let name = text[0];
@@ -700,63 +733,69 @@ function parseQuerySelector(text){
     }
     return {nodes:[{type:'variable',name}],rest}
 }
-function parseFragment(text){
+function lexDataType(text){
+    const notAllowed = "(){}[];:.,?!@#%^*&+=~`'\"<> \n\t\r"
+    if(text[0]!='<') return null;  //Var must start with $
+    let name = text[0];
+    let rest = '';
+    let i = 1;
+    while(true){
+        if(notAllowed.includes(text[i])) break;
+        if(i>= text.length) break;
+        name+=text[i];
+        i++;
+    }
+    for(;i<text.length;i++){
+        rest+=text[i];
+    }
+    return {nodes:[{type:'variable',name}],rest}
+}
+function lexFragment(text){
     /** Parsowanie elementów spornych:
      * elementy sporne, takie jak np +,- czy słowa są parsowane w kolejności
      * dla +,- :
      *  - liczba 
      *  - operacja na tablicy
      *  - działania matematyczne
-     *  
+     * 
      *  ? Kożystamy w tym miejscu z własności, że jezeli nie jest coś zgodne, to funkcja zwraca null
      */
     
     let nodeTree = [];
     let work = true;
-    const parseTable = {
+    const lexTable = {
         '$':t=>{return cutVariable(t)},         //? Variables
         '#':t=>{return cutIdRoute(t)},         //? Id and Routes
         '@':t=>{return cutFunctionName(t)},     //? functions
-        ';':t=>{return cutEndOfCommandRow(t)},  //? endOfCommandRow
+        ';':t=>{return cutSeparator(t)},  //? endOfCommandRow
         '\n':t=>{return cutEndOfCommandRow(t)},  //? ==||==
         "'":t=>{return cutStringSimple(t)},
         '"':t=>{return cutStringAdvance(t,'"')},
         '`':t=>{return cutStringAdvance(t,'`')},
         '{':t=>{return cutFragment(t)},
-        '(':t=>{return cutParenthesFragment(t)}
+        '(':t=>{return cutParenthesFragment(t)},
+        '[':t=>{return cutBracketFragment(t)}
     }
     while(work){
         if(text.length == 0) break;
         let v = null;
-        if(
-            text[0] == ' ' || 
-            text[0] == '\r'
-            ){
-            text = text.substring(1);
-            continue;
-        }
-        if(!parseTable[text[0]] && !v){
+        if(!lexTable[text[0]] && !v){
             //Może to liczba?
-            v = parseComment(text) || 
-            parseNumber(text) ||
-            parseClassName(text) || 
-            parseCalcSymbol(text) || 
-            parseTextValue(text)
-        }else if(parseTable[text[0]]){
-            v = parseTable[text[0]](text);
+            v = 
+            cutIgnored(text) ||
+            cutSpace(text) || 
+            lexComment(text) || 
+            lexNumber(text) ||
+            lexClassName(text) || 
+            lexCalcSymbol(text) || 
+            cutStaticNode(text)
+        }else if(lexTable[text[0]]){
+            v = lexTable[text[0]](text);
         }
         text = v.rest
         nodeTree.push(...v.nodes);
     }
     return nodeTree;
 }
+module.exports = {lexFragment};
 
-
-(async function(){
-    
-    var { promises } = require('fs');
-    const data = await promises.readFile( __dirname + '/../test.csl')
-    let programText = data.toString();
-    let mainNodeTree = parseFragment(programText);
-    console.dir(mainNodeTree,{ depth: null })
-})()

@@ -56,7 +56,7 @@
                 @log "Niesamowite!"                                 /// Arguments of function can be writed without ()
                 &.content: '<img src="{$src}"/>'
             }
-            &.content: 'Trwa wczytywanie obrazka %{@loadingDots()}'
+            &.content: 'Trwa wczytywanie obrazka \{@loadingDots()}'
         }
     }
 
