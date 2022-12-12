@@ -653,7 +653,7 @@ function lexCalcSymbol(text){
         }
         
     }else if(l == ','){
-        type = "Separator"
+        type = "Comma"
         
     }
     //Logiczne i Binarne
