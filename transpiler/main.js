@@ -1,7 +1,13 @@
+function loadLibToContext(src,context){
+    let lib = require(src);
+    return {...context,...lib.context};
+}
+
 (async function(){
     var { promises } = require('fs');
     var { lexFragment } = require('./lexer');
-    var { parseFragment } = require('./parser')
+    var { prepareTree } = require('./preparer')
+    var { parseFragment,preparseFragment } = require('./parser')
     var colors  = require ('colors/safe');
     //load file data
     const data = await promises.readFile( __dirname + '/../test.csl')
@@ -12,11 +18,30 @@
     console.log(colors.green('Lexing started'));
     let mainNodeTree = lexFragment(programText);
     console.log(colors.magenta('Lexing finished'));
+    //? PostLexer
     
+
+    let startContext = {};
+    //? LOAD LIBS
+    console.log(colors.green('Loading libs started'));
+    startContext = loadLibToContext('../lib/color.js',startContext);
+    
+    console.log(colors.magenta('Loading libs finished'));
+
+    console.log(colors.green('Preparing started'));
+    console.log(mainNodeTree)
+    mainNodeTree = prepareTree(mainNodeTree,startContext);
+    console.log(colors.magenta('Preparing finished'));
+    //? Preparse
+    console.log(colors.green('Preparsing started'));
+    mainNodeTree = preparseFragment(mainNodeTree,startContext);
+    console.log(colors.magenta('Preparsing finished'));
     //? Parser
     console.log(colors.green('Parsing started'));
     console.log(colors.red('Parsing experimental support'));
-    let {runtimeTree,context} = parseFragment(programText);
-    console.log(colors.magenta('Parsing finished'));
-    console.dir(mainNodeTree,{ depth: null })
+    //console.dir(mainNodeTree.nodeTree,{ depth: null })
+    let {nodeTree,context} = parseFragment(mainNodeTree.nodeTree,startContext);
+    //console.log(colors.magenta('Parsing finished'));
+    console.dir(mainNodeTree.nodeTree,{ depth: null })
+    //console.dir(nodeTree,{ depth: null })
 })()
