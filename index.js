@@ -36,7 +36,7 @@ const _fragment = require('./lib/fragment');
     let file = path.resolve(argument);
     const context = new Context({},{
         loaders: [
-            _fragment
+            _number
         ]
     });
     await context.load(file);
@@ -45,5 +45,5 @@ const _fragment = require('./lib/fragment');
 
 function afterStart(programText, context){
     // na początku programu możemy się spodziewać: 
-    console.log(_fragment(programText, context));
+    console.log(_number(programText, context));
 }
