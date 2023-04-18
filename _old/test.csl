@@ -1,0 +1,9 @@
+//Co dziwnego jest poprawne
+@echo "Simema" \
+"Byczku
+
+No cześć
+"
+
+//Same as 
+@echo "Simema" "Byczku"

@@ -1,6 +1,0 @@
-@typedef rgb | rgba (<color>){ //Stwórz typy rgb i rgba
-    construct: @(<int[0..255] | percentage> r,<int[0..255] | percentage> g, <int[0..255] | percentage>b, ?<number[0..1] | percentage> a) // ztakim konstuktorem
-    _toBase: @(rgba){
-        <color> hex(r).hex(g).hex(b).?hex(scale([0..1],[0..255],a))
-    }
-} 

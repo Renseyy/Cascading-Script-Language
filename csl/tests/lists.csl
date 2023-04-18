@@ -1,0 +1,7 @@
+<list<string>> $list1: "Jeden" "Dwa" "Trzy"
+<list<string>> $list2: "Jeden", "Dwa", "Trzy"
+<list<list<string>>> $list3: "JedenJeden" "JedenDwa", "DwaJeden" "DwaDwa"
+<list> $list4: ("Jeden" "Dwa" "Trzy")
+<list> $list5: ("Jeden", "Dwa", "Trzy")
+<list> $list6: ("JedenJeden" "JedenDwa", "DwaJeden" "DwaDwa")
+<list> $list7: (("JedenJeden" "JedenDwa") ("DwaJeden" "DwaDwa"))

@@ -1,0 +1,9 @@
+<array> $arr: [red, green, blue]
+<array[<color>]> $arrTyped: [red, green, blue]
+<collection> $collection: [red, green, blue]
+<array> $array: [
+    'Czerwony' => red
+    'Zielony' => green
+    'Niebieski' => blue
+]
+
