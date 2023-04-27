@@ -3,8 +3,13 @@ const path = require('path');
 
 const Context = require('./lib/context')
 const _number = require('./lib/number');
+const _string = require('./lib/string')
 const _fragment = require('./lib/fragment');
-
+const _symbol = require('./lib/symbol');
+const _space = require('./lib/space');
+const _variable = require('./lib/variable');
+const _callable = require('./lib/callable');
+const _reference = require('./lib/reference');
 /**
  * CSL parser - v0.3.0
  * Napisany od zera, a nie przepisywany co chwilę
@@ -36,7 +41,14 @@ const _fragment = require('./lib/fragment');
     let file = path.resolve(argument);
     const context = new Context({},{
         loaders: [
-            _number
+            _string,
+            _variable,
+            _callable,
+            _reference,
+            _number,
+            _symbol,
+            _space,
+            
         ]
     });
     await context.load(file);

@@ -1,1 +1,6 @@
-0`x.e
+$test-variable: 0x123
+@echo 123
+@log $test-variable
+
+&referenceToVariable: &$test-variable
+@log &reference
