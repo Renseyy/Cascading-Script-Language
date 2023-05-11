@@ -5,6 +5,7 @@ const Context = require('./lib/context')
 const _number = require('./lib/number');
 const _string = require('./lib/string')
 const _fragment = require('./lib/fragment');
+const _sieve = require('./lib/sieve');
 const _symbol = require('./lib/symbol');
 const _space = require('./lib/space');
 const _variable = require('./lib/variable');
@@ -44,6 +45,7 @@ const _reference = require('./lib/reference');
             _string,
             _variable,
             _callable,
+            _sieve,
             _reference,
             _number,
             _symbol,

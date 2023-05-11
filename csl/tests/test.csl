@@ -4,3 +4,7 @@ $test-variable: 0x123
 
 &referenceToVariable: &$test-variable
 @log &reference
+@log $&reference
+
+%sieve: %s<-&test-variable
+${}
